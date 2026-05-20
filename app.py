@@ -1,34 +1,49 @@
 import streamlit as st
 import xarray as xr
 import matplotlib.pyplot as plt
-import os
+import numpy as np
 
-st.set_page_config(page_title="HydroPINN-API Dashboard", layout="wide")
-st.title("🌊 HydroPINN-API: Automated Coastal Hydrodynamics")
-st.write("Real-time automated spatial data processing for coastal engineering.")
+st.set_page_config(page_title="AeroOceanic AI - Hydrodynamics Portal", layout="wide")
+st.title("🌊 AeroOceanic AI: Real-Time Dynamic Current & Wind Vector Dashboard")
+st.write("Lokasi Analisis: Pesisir Cisadane - Teluk Jakarta (Operasional Otomatis)")
 
-@st.cache_data
-def load_ocean_data(file_path):
-    ds = xr.open_dataset(file_path)
-    return ds
+@st.cache_data(ttl=3600)
+def load_data():
+    return xr.open_dataset("data_laut.nc")
 
-# Deteksi otomatis apakah file data sudah dibuat oleh bot GitHub
-file_data = "data_laut.nc"
-
-if os.path.exists(file_data):
-    try:
-        data = load_ocean_data(file_data)
-        st.success("Data Pipeline Status: Operational (100% Connected to Cloud)")
-        
-        st.sidebar.header("Filter Parameter Spasial")
-        selected_time = st.sidebar.selectbox("Pilih Waktu Analisis (Timestamp)", data.time.values)
-        
-        fig, ax = plt.subplots(figsize=(10, 6))
-        data['surface_current'].sel(time=selected_time).plot(ax=ax, cmap='jet')
-        ax.set_title(f"Prediksi Arus Permukaan Pesisir pada: {selected_time}")
-        
+try:
+    ds = load_data()
+    st.sidebar.header("Parameter Kontrol")
+    time_list = [str(t)[:19] for t in ds.time.values]
+    selected_time_str = st.sidebar.selectbox("Pilih Waktu Analisis (WIB)", time_list)
+    
+    selected_ds = ds.sel(time=selected_time_str)
+    lat = selected_ds.lat.values
+    lon = selected_ds.lon.values
+    speed = selected_ds.surface_current.values
+    u = selected_ds.u_current.values
+    v = selected_ds.v_current.values
+    
+    fig, ax = plt.subplots(figsize=(11, 7))
+    contour = ax.contourf(lon, lat, speed, levels=25, cmap="jet")
+    cbar = fig.colorbar(contour, ax=ax)
+    cbar.set_label("Total Current Speed Magnitude [m/s]", fontsize=12)
+    
+    skip = 2
+    ax.quiver(lon[::skip], lat[::skip], u[::skip, ::skip], v[::skip, ::skip],
+              color="white", scale=5.0, width=0.003, edgecolor="black", linewidth=0.5)
+    
+    ax.set_title(f"Vektor Arah dan Magnitudo Arus Laut Permukaan\nTimestamp: {selected_time_str}", fontsize=13, fontweight='bold')
+    ax.set_xlabel("Longitude [degrees_east]", fontsize=10)
+    ax.set_ylabel("Latitude [degrees_north]", fontsize=10)
+    ax.grid(True, linestyle="--", alpha=0.5)
+    
+    col1, col2 = st.columns([4, 1])
+    with col1:
         st.pyplot(fig)
-    except Exception as e:
-        st.error(f"Gagal membaca data: {e}")
-else:
-    st.info("🔄 Menunggu bot GitHub Actions menyuplai file 'data_laut.nc' pertama kali. Pipa data di Cloud siap menerima input otomatis.")
+    with col2:
+        st.metric(label="Kecepatan Arus Maksimum", value=f"{np.max(speed):.3f} m/s")
+        st.metric(label="Rata-rata Kecepatan", value=f"{np.mean(speed):.3f} m/s")
+        st.write("Panah putih menunjukkan **arah aliran air secara spasial** akibat kombinasi pasut dan angin satelit.")
+except Exception as e:
+    st.error(f"Gagal memuat visualisasi. Error: {e}")
