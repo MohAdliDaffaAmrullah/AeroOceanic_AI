@@ -2,10 +2,21 @@ import streamlit as st
 import xarray as xr
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import subprocess
 
 st.set_page_config(page_title="AeroOceanic AI - Hydrodynamics Portal", layout="wide")
 st.title("🌊 AeroOceanic AI: Real-Time Dynamic Current & Wind Vector Dashboard")
 st.write("Lokasi Analisis: Pesisir Cisadane - Teluk Jakarta (Operasional Otomatis)")
+
+# KUNCI UTAMA: Jika file data belum ada di server Cloud, paksa jalankan engine.py secara otonom
+if not os.path.exists("data_laut.nc"):
+    with st.spinner("Inisialisasi Perdana: Server sedang mengunduh data angin satelit dan merakit model hidrodinamika..."):
+        try:
+            subprocess.run(["python", "engine.py"], check=True)
+            st.success("Database data_laut.nc berhasil dirakit langsung di server Cloud!")
+        except Exception as e:
+            st.error(f"Gagal menjalankan engine otomatisasi di server. Error: {e}")
 
 @st.cache_data(ttl=3600)
 def load_data():
