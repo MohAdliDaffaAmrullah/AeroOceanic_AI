@@ -36,15 +36,14 @@ for h in range(24):
     current_time_series.append(abs(u_t))
 
 # 5. Distribusikan ke Grid Spasial 40x40 dengan Efek Batimetri Pantai
-# Semakin dekat ke pantai (asumsi gradien selatan ke utara), arus melambat karena gesekan dasar
 spatial_gradient = np.linspace(0.6, 1.2, 40)  # Gradien dari Selatan ke Utara
 
 # Membuat matriks 3D (Time, Lat, Lon)
 data_3d = np.zeros((24, 40, 40))
 for t in range(24):
     for i in range(40):
-        # Arus bervariasi secara spasial tergantung posisi grid
-        data_3d[t, i, :] = current_time_series[t] * spatial_gradient[i]
+        # Ambil nilai absolut (np.abs) agar tidak ada nilai kecepatan yang minus!
+        data_3d[t, i, :] = np.abs(current_time_series[t]) * spatial_gradient[i]
 
 # 6. Kemas ke dalam NetCDF Standar Oseanografi Internasional
 ds = xr.Dataset(
